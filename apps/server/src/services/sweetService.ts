@@ -1,7 +1,7 @@
-import { prisma } from '../lib/prisma.js';
+import { Sweet } from '../db/index.js';
 
 export function listSweets() {
-  return prisma.sweet.findMany({
-    orderBy: { id: 'asc' },
+  return Sweet.findAll({
+    order: [['id', 'ASC']],
   });
 }

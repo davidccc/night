@@ -1,9 +1,10 @@
 import http from 'node:http';
 import { createApp } from './app.js';
 import { getEnv } from './config/env.js';
-import { prisma } from './lib/prisma.js';
+import { closeDatabase, initDatabase } from './db/index.js';
 async function bootstrap() {
     const env = getEnv();
+    await initDatabase();
     const app = createApp();
     const server = http.createServer(app);
     server.listen(env.PORT, () => {
@@ -12,7 +13,9 @@ async function bootstrap() {
     const shutdown = async (signal) => {
         console.log(`\nReceived ${signal}. Closing server...`);
         server.close(async () => {
-            await prisma.$disconnect();
+            await closeDatabase().catch((error) => {
+                console.error('Failed to close database connection', error);
+            });
             process.exit(0);
         });
     };

@@ -6,11 +6,6 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
-    "paths": {
-      "@night-king/prisma": [
-        "packages/prisma/src/index.ts"
-      ]
-    },
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true

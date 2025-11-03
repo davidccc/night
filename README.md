@@ -7,10 +7,9 @@
 ```
 .
 ├── apps
-│   ├── server          # Node.js + Express + Prisma 後端 (Webhook / REST API)
+│   ├── server          # Node.js + Express + Sequelize 後端 (Webhook / REST API)
 │   └── web             # Next.js + Tailwind CSS + LIFF Web 前端
-├── packages
-│   └── prisma          # Prisma Schema、Client 與 Seed 腳本
+├── scripts             # 部署腳本與輔助工具
 ├── docs                # 架構與部署補充說明
 ├── .env.example        # 環境變數範本
 ├── package.json        # NPM workspaces 與共用指令
@@ -20,9 +19,9 @@
 ## 🚀 核心模組
 
 - **LINE Bot Server**：處理 LINE Webhook 事件、自動回覆 Flex/文字，並橋接 REST API。
-- **REST API 層**：提供 `/api/login`, `/api/sweets`, `/api/booking`, `/api/reward` 等端點，支援 JWT 驗證與 Prisma ORM。
+- **REST API 層**：提供 `/api/login`, `/api/sweets`, `/api/booking`, `/api/reward` 等端點，採用 Sequelize ORM 搭配 MySQL。
 - **LIFF Web 前端**：Next.js 14 App Router，整合 LIFF SDK 完成自動登入、預約與積分管理介面。
-- **Prisma + MySQL**：以 PlanetScale/Cloud SQL 為目標的 Schema，支援預約、甜心、使用者與積分紀錄。
+- **Sequelize + MySQL**：以 PlanetScale/Cloud SQL 為目標的 Schema，支援預約、甜心、使用者與積分紀錄。
 - **測試骨架**：後端使用 Vitest + Supertest，前端提供 Vitest 元件測試與 Playwright E2E 腳手架。
 
 詳盡的技術拆解、資料流程與部署建議請參考 `docs/ARCHITECTURE.md`。
@@ -37,17 +36,16 @@
 ## ⚙️ 安裝與初始化
 
 ```bash
-# 安裝依賴 (會一併安裝 server / web / prisma 的套件)
+# 安裝依賴 (會一併安裝 server / web 的套件)
 npm install
 
 # 建立環境變數
 cp .env.example .env
 # 依實際需求填入 LIFF / LINE / Database 等設定
 
-# 生成 Prisma Client & 建立資料表
-npm run prisma:generate
-npm run prisma:push        # PlanetScale 可改用 prisma migrate deploy
-npm run prisma:seed        # 選填：匯入示範甜心 / 使用者
+# 建立資料表並匯入範例資料
+npm run db:sync --workspace=@night-king/server
+npm run db:seed --workspace=@night-king/server   # 選填：匯入示範甜心 / 使用者
 ```
 
 > 本範例預設後端埠號為 `4000`，LIFF Web Dev Server 埠號為 `3000`，避免埠衝突。
@@ -79,14 +77,14 @@ npm run prisma:seed        # 選填：匯入示範甜心 / 使用者
 
 - **後端**：建議部署於 Render / Fly.io / Railway，設定環境變數並綁定 LINE Webhook URL (例：`https://your-server/webhook`).
 - **前端**：部署至 Vercel，於 Project Settings -> Environment Variables 填入 `NEXT_PUBLIC_API_BASE_URL`（指向後端 API 網址）。
-- **資料庫**：PlanetScale / Cloud SQL，需開啟 Prisma 使用者權限與連線白名單。
+- **資料庫**：PlanetScale / Cloud SQL，需開啟資料庫使用者權限與連線白名單。若 schema 有變更，請執行 `npm run db:sync --workspace=@night-king/server` 重新同步。
 - **Webhook 安全**：務必保護 Channel Secret，並啟用 LINE Webhook 驗證簽章。
 
 部署相關的 CI/CD 流程與環境建議，可參考 `docs/DEPLOYMENT.md`。
 
 ## 🧠 開發 Roadmap (建議)
 
-1. Schema 與 Prisma Client 建立
+1. Schema 與 Sequelize Model 建立
 2. 完成 LINE Bot Webhook 與 Flex 回覆
 3. 整合 LIFF Login 與 JWT，完成前端登入流程
 4. 實作預約 / Reward API 與對應 UI

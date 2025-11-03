@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import type { Route } from 'next';
 import Link from 'next/link';
 

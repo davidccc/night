@@ -32,7 +32,7 @@
 5. 部署完成後取得 HTTPS 網址 (例：`https://night-king-server.onrender.com`)。
 6. 前往 LINE Developers → Messaging API → Webhook URL，填入 `https://night-king-server.onrender.com/webhook`，並按 Verify。
 
-> PlanetScale 使用者請先建立資料庫，取得 `DATABASE_URL`。若使用其他 MySQL，需要預先執行 `npm run prisma:migrate` 或 `npm run prisma:push`。
+> PlanetScale 使用者請先建立資料庫，取得 `DATABASE_URL`。若使用其他 MySQL，需要先執行 `npm run db:sync --workspace=@night-king/server` 同步資料表。
 
 ## 3. 前端部署 (Vercel 示意)
 
@@ -46,15 +46,8 @@
 
 ```bash
 # 於本機或 CI 執行一次即可
-npm run prisma:generate
-npm run prisma:push
-npm run prisma:seed
-```
-
-PlanetScale 若採線上 migration 流程，可改用：
-
-```bash
-npm run prisma:migrate
+npm run db:sync --workspace=@night-king/server
+npm run db:seed --workspace=@night-king/server
 ```
 
 ## 5. 自動化建議
@@ -71,7 +64,7 @@ npm run prisma:migrate
 - 若加入 CDN (Cloudflare)，請更新 Webhook URL 以確保 HTTPS 証書與 Header 未被移除。
 - 監控：
   - LINE Webhook 錯誤會顯示於 Render Logs。
-  - Prisma 提供 `$metrics` 可串接 APM（可加入未來 Roadmap）。
+- Sequelize 可搭配 PlanetScale Insights 或 APM（可加入未來 Roadmap）。
 
 ## 7. 常見問題
 
@@ -79,7 +72,7 @@ npm run prisma:migrate
 | ---- | -------- |
 | Webhook 無回應 | 確認 `LINE_CHANNEL_*` 是否正確、Render Logs 是否顯示 200、Webhook URL 是否 HTTPS |
 | LIFF 無法登入 | 檢查 LINE Developers Console 中的 Callback URL 是否為 `${BASE_URL}/line/callback`，以及 LIFF Endpoint 是否與 `LIFF_BASE_URL` 相符，並確認 `NEXT_PUBLIC_API_BASE_URL` 指向同一網域 |
-| Prisma 連線錯誤 | 檢查 `DATABASE_URL` 格式；PlanetScale 需使用 `?sslaccept=strict` |
+| Sequelize 連線錯誤 | 檢查 `DATABASE_URL` 格式與白名單；PlanetScale 需使用 `?sslaccept=strict` |
 | JWT 驗證失敗 | 確保前後端 `JWT_SECRET` 一致，且 Bearer header 格式 `Authorization: Bearer <token>` |
 
-順利部署後，即可透過 Rich Menu 導向 LIFF，並使用預約 / Reward 功能。若需擴展 LINE Pay 或 CRM，建議另外建立微服務或在 Server 模組新增對應路由與 Prisma Model。
+順利部署後，即可透過 Rich Menu 導向 LIFF，並使用預約 / Reward 功能。若需擴展 LINE Pay 或 CRM，建議另外建立微服務或在 Server 模組新增對應路由與 Sequelize Model。

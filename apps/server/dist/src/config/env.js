@@ -24,12 +24,12 @@ const envSchema = z.object({
         .string()
         .optional()
         .transform((value) => (value ? Number.parseInt(value, 10) : 4000)),
-    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required').optional(),
     JWT_SECRET: z.string().min(1, 'JWT_SECRET is required'),
     LINE_CHANNEL_ACCESS_TOKEN: z.string().min(1, 'LINE_CHANNEL_ACCESS_TOKEN is required'),
     LINE_CHANNEL_SECRET: z.string().min(1, 'LINE_CHANNEL_SECRET is required'),
     LINE_LOGIN_CHANNEL_ID: z.string().min(1, 'LINE_LOGIN_CHANNEL_ID is required'),
-    LINE_LOGIN_CHANNEL_SECRET: z.string().optional(),
+    LINE_LOGIN_CHANNEL_SECRET: z.string().min(1, 'LINE_LOGIN_CHANNEL_SECRET is required'),
     BASE_URL: z.string().optional(),
     CORS_ORIGIN: z.string().optional(),
     LIFF_BASE_URL: z.string().optional(),
@@ -44,7 +44,11 @@ export function getEnv() {
                 .join(', ');
             throw new Error(`Environment validation error: ${message}`);
         }
-        cachedEnv = { ...parsed.data, PORT: parsed.data.PORT ?? 4000 };
+        const databaseUrl = parsed.data.DATABASE_URL ?? 'mysql://user:pass@localhost:3306/test';
+        if (!databaseUrl) {
+            throw new Error('Environment validation error: DATABASE_URL is required');
+        }
+        cachedEnv = { ...parsed.data, DATABASE_URL: databaseUrl, PORT: parsed.data.PORT ?? 4000 };
     }
     return cachedEnv;
 }

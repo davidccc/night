@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 import { getEnv } from '../config/env.js';
-import type { User } from '../lib/prisma.js';
+import type { User } from '../db/index.js';
 import { upsertLineUser } from './userService.js';
 
 const env = getEnv();

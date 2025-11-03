@@ -15,27 +15,27 @@ LINE Official Account (Webhook) ──► apps/server (Express) ──► Planet
 - **Bot Server**：接收 LINE Messaging API 事件，依照關鍵字觸發 Flex Message / 文字回覆或導流至 LIFF。
 - **REST API / Gateway**：統一提供登入、甜心列表、預約、積分 CRUD，並驗證 JWT。
 - **Web (LIFF)**：手機優先的 Next.js UI，完成 LINE Login、預約流程與 Reward 介面。
-- **資料庫層**：MySQL + Prisma ORM，確保資料一致性並支援 PlanetScale 線上部署。
+- **資料庫層**：MySQL + Sequelize ORM，確保資料一致性並支援 PlanetScale 線上部署。
 
 ## 2. 模組分層
 
 | 模組 | 負責範圍 | 技術 stack |
 | ---- | -------- | ---------- |
-| apps/server | LINE Webhook、REST API、JWT、Prisma | Node.js, Express, Prisma, Zod |
+| apps/server | LINE Webhook、REST API、JWT、Sequelize | Node.js, Express, Sequelize, Zod |
 | apps/web | LIFF Web 前端、Tailwind UI、API Integration | Next.js 14, @line/liff, Tailwind CSS |
-| packages/prisma | Schema、Client、Seed | Prisma ORM |
+| scripts | 部署腳本與 DB 管理 | bash |
 | docs | 架構文件、部署指引 | Markdown |
 
 ## 3. 資料庫 Schema
 
-`packages/prisma/prisma/schema.prisma`
+`apps/server/src/db/index.ts` 透過 Sequelize 定義四個 Model：
 
-- `User`：LINE 使用者、Reward 累積、與預約/積分紀錄 (索引：`lineUserId`).
+- `User`：LINE 使用者、Reward 累積、與預約/積分紀錄 (索引：`line_user_id`).
 - `Sweet`：甜心卡片資料，含標籤與封面圖。
-- `Booking`：預約紀錄，紀錄使用者、甜心、日期、時段、狀態與備註 (索引：`userId`, `sweetId`, `status`).
-- `RewardLog`：積分異動歷程，協助稽核與客服查詢 (索引：`userId`, `createdAt`).
+- `Booking`：預約紀錄，紀錄使用者、甜心、日期、時段、狀態與備註 (索引：`user_id`, `sweet_id`, `status`).
+- `RewardLog`：積分異動歷程，協助稽核與客服查詢 (索引：`user_id`, `created_at`).
 
-Prisma 以 MySQL 8.0 為目標，亦可運行於 PlanetScale / Cloud SQL。`DATABASE_URL` 由 `.env` 控管。
+Sequelize 使用 `sequelize.sync()` 與 `apps/server/scripts/sync.ts` 進行 schema 建置，`DATABASE_URL` 由 `.env` 控管。
 
 ## 4. API 設計
 
@@ -96,7 +96,7 @@ UI 特點：
 - 為 `bookings`, `reward_logs` 建立索引，加速查詢。
 - LINE Webhook 啟用簽章驗證，防止偽造請求。
 - 拆分 dev / staging / prod 環境；可於 staging 模擬 LINE Sandbox。
-- 設計 Graceful Shutdown (`SIGTERM`, `SIGINT`) 以釋放 Prisma 連線。
+- 設計 Graceful Shutdown (`SIGTERM`, `SIGINT`) 以釋放資料庫連線。
 
 ## 9. 測試策略
 
@@ -111,7 +111,7 @@ UI 特點：
 - CRM 整合：記錄客服轉接狀態與標籤。
 - 推播模組：排程提醒預約、積分到期。
 - Analytics：定期同步資料至 BigQuery 進行報表分析。
-- 多語系：以 Next.js i18n + Prisma 增加語系欄位。
+- 多語系：以 Next.js i18n + Sequelize 擴充語系欄位。
 
 ---
 

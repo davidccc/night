@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma.js';
-import type { Prisma } from '@night-king/prisma';
+import { sequelize, Booking, RewardLog, Sweet, User } from '../db/index.js';
+import type { Transaction } from 'sequelize';
 
 export interface CreateBookingInput {
   userId: number;
@@ -10,12 +10,15 @@ export interface CreateBookingInput {
 }
 
 export function listBookingsForUser(userId: number) {
-  return prisma.booking.findMany({
+  return Booking.findAll({
     where: { userId },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      sweet: true,
-    },
+    order: [['createdAt', 'DESC']],
+    include: [
+      {
+        model: Sweet,
+        as: 'sweet',
+      },
+    ],
   });
 }
 
@@ -25,40 +28,45 @@ export async function createBooking(input: CreateBookingInput) {
     throw Object.assign(new Error('Invalid booking date'), { status: 400 });
   }
 
-  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const sweet = await tx.sweet.findUnique({ where: { id: input.sweetId } });
+  return sequelize.transaction(async (transaction: Transaction) => {
+    const sweet = await Sweet.findByPk(input.sweetId, { transaction });
     if (!sweet) {
       throw Object.assign(new Error('Sweet not found'), { status: 404 });
     }
 
-    const booking = await tx.booking.create({
-      data: {
+    const user = await User.findByPk(input.userId, { transaction });
+    if (!user) {
+      throw Object.assign(new Error('User not found'), { status: 404 });
+    }
+
+    const booking = await Booking.create(
+      {
         userId: input.userId,
         sweetId: input.sweetId,
         date: bookingDate,
         timeSlot: input.timeSlot,
         status: 'PENDING',
-        note: input.note,
+        note: input.note ?? null,
       },
-      include: {
-        sweet: true,
-      },
+      { transaction }
+    );
+
+    await booking.reload({
+      transaction,
+      include: [{ model: Sweet, as: 'sweet' }],
     });
 
-    await tx.user.update({
-      where: { id: input.userId },
-      data: {
-        rewardPoints: { increment: 50 },
-      },
-    });
+    await user.increment('rewardPoints', { by: 50, transaction });
+    await user.reload({ transaction });
 
-    await tx.rewardLog.create({
-      data: {
+    await RewardLog.create(
+      {
         userId: input.userId,
         delta: 50,
         reason: `預約 ${sweet.name}`,
       },
-    });
+      { transaction }
+    );
 
     return booking;
   });

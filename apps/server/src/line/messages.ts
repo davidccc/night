@@ -1,6 +1,6 @@
 import type { FlexBubble, FlexComponent, FlexMessage, Message } from '@line/bot-sdk';
 
-import type { Sweet } from '../lib/prisma.js';
+import type { Sweet } from '../db/index.js';
 import { getEnv } from '../config/env.js';
 
 const env = getEnv();

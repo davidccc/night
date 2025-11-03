@@ -24,6 +24,7 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const TOKEN_STORAGE_KEY = 'night-king.auth.token';
+const ERROR_STORAGE_KEY = 'night-king.auth.error';
 
 function readAuthParamsFromUrl() {
   if (typeof window === 'undefined') {
@@ -46,7 +47,17 @@ function readAuthParamsFromUrl() {
     window.history.replaceState({}, document.title, url.toString());
   }
 
-  return { token, error };
+  let fallbackError: string | undefined;
+  try {
+    fallbackError = window.sessionStorage.getItem(ERROR_STORAGE_KEY) ?? undefined;
+    if (fallbackError) {
+      window.sessionStorage.removeItem(ERROR_STORAGE_KEY);
+    }
+  } catch {
+    fallbackError = undefined;
+  }
+
+  return { token, error: error ?? fallbackError };
 }
 
 function buildAuthorizeUrl(redirectUrl: string) {
@@ -106,6 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Login verification failed', error);
       window.localStorage.removeItem(TOKEN_STORAGE_KEY);
+      try {
+        window.sessionStorage.setItem(ERROR_STORAGE_KEY, error instanceof Error ? error.message : '登入失敗，請稍後再試');
+      } catch {
+        // ignore storage errors
+      }
       setState({
         status: 'error',
         error: error instanceof Error ? error.message : '登入失敗，請稍後再試',

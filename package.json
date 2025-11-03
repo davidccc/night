@@ -5,8 +5,7 @@
   "description": "Monorepo for the Night-king LINE OMO system (LINE Bot + LIFF Web + MySQL).",
   "workspaces": [
     "apps/server",
-    "apps/web",
-    "packages/prisma"
+    "apps/web"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=@night-king/server",
@@ -20,11 +19,7 @@
     "test:server": "npm run test --workspace=@night-king/server",
     "test:web": "npm run test --workspace=@night-king/web",
     "lint": "npm run lint --workspace=@night-king/server && npm run lint --workspace=@night-king/web",
-    "format": "biome format --write .",
-    "prisma:generate": "npm run generate --workspace=@night-king/prisma",
-    "prisma:push": "npm run db:push --workspace=@night-king/prisma",
-    "prisma:migrate": "npm run migrate --workspace=@night-king/prisma",
-    "prisma:seed": "npm run seed --workspace=@night-king/prisma"
+    "format": "biome format --write ."
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",

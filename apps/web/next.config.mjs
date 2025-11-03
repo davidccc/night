@@ -13,6 +13,10 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'placekitten.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'profile.line-scdn.net',
       }
     ],
   },

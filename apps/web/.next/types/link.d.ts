@@ -31,8 +31,8 @@ declare namespace __next_route_internal_types__ {
   type StaticRoutes = 
     | `/`
     | `/booking`
-    | `/records`
     | `/profile`
+    | `/records`
     | `/reward`
     | `/sweet`
   type DynamicRoutes<T extends string = string> = never

@@ -6,7 +6,7 @@ import type { NextServer, NextServerOptions } from 'next/dist/server/next.js';
 
 import { createApp } from './app.js';
 import { getEnv } from './config/env.js';
-import { prisma } from './lib/prisma.js';
+import { closeDatabase, initDatabase } from './db/index.js';
 import { errorHandler } from './middleware/error.js';
 import { notFoundHandler } from './middleware/notFound.js';
 
@@ -20,7 +20,18 @@ async function bootstrap() {
   }
 
   const env = getEnv();
+  if (!process.env.NEXT_ALLOW_HMR_ORIGIN) {
+    const preferredOrigin =
+      env.CORS_ORIGIN?.split(',').map((value) => value.trim()).filter(Boolean)[0] ??
+      env.BASE_URL ??
+      undefined;
+    if (preferredOrigin) {
+      process.env.NEXT_ALLOW_HMR_ORIGIN = preferredOrigin;
+    }
+  }
   const isDev = env.NODE_ENV !== 'production';
+
+  await initDatabase();
 
   const currentFile = fileURLToPath(import.meta.url);
   const currentDir = dirname(currentFile);
@@ -39,7 +50,13 @@ async function bootstrap() {
   await nextApp.prepare();
 
   const app = createApp({ includeFallback: false, applySecurityHeaders: false });
-  app.all('*', (req, res) => void handle(req, res));
+  app.all('*', async (req, res, next) => {
+    try {
+      await handle(req, res);
+    } catch (error) {
+      next(error);
+    }
+  });
   app.use(notFoundHandler);
   app.use(errorHandler);
 
@@ -55,7 +72,9 @@ async function bootstrap() {
       if ('close' in nextApp && typeof nextApp.close === 'function') {
         await nextApp.close();
       }
-      await prisma.$disconnect();
+      await closeDatabase().catch((error) => {
+        console.error('Failed to close database connection', error);
+      });
       process.exit(0);
     });
   };

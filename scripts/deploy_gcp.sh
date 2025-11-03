@@ -252,6 +252,6 @@ Cloud Run services:
 Remember to:
   • Ensure required environment variables or Secret Manager bindings are set.
   • Grant the services access to Cloud SQL (if used) and enable the SQL Admin API.
-  • Run database migrations (e.g. npm run prisma:migrate) before routing traffic.
+  • Run database migrations or sync (e.g. npm run db:sync --workspace=@night-king/server) before routing traffic.
 
 EOF

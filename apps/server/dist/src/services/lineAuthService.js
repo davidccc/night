@@ -26,7 +26,55 @@ export async function verifyLineIdToken(idToken) {
     }
     return payload;
 }
-export async function loginWithLine(idToken) {
+export async function exchangeAuthorizationCode(code, redirectUri) {
+    if (!env.LINE_LOGIN_CHANNEL_SECRET) {
+        throw new Error('LINE_LOGIN_CHANNEL_SECRET is required to exchange authorization code');
+    }
+    let normalizedRedirectUri = redirectUri.trim();
+    try {
+        const url = new URL(normalizedRedirectUri);
+        normalizedRedirectUri = url.toString();
+    }
+    catch {
+        throw new Error(`Invalid redirect URI: ${redirectUri}`);
+    }
+    const body = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: normalizedRedirectUri,
+        client_id: env.LINE_LOGIN_CHANNEL_ID,
+        client_secret: env.LINE_LOGIN_CHANNEL_SECRET,
+    });
+    console.info('[line-token-exchange] request', {
+        clientId: env.LINE_LOGIN_CHANNEL_ID,
+        redirectUri: normalizedRedirectUri,
+        grantType: 'authorization_code',
+    });
+    const response = await fetch('https://api.line.me/oauth2/v2.1/token', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+    });
+    if (!response.ok) {
+        const text = await response.text();
+        console.error('[line-token-exchange] failed', {
+            status: response.status,
+            statusText: response.statusText,
+            body: text,
+            redirectUri: normalizedRedirectUri,
+        });
+        throw new Error(`LINE token exchange failed: ${response.status} ${text}`);
+    }
+    const tokens = (await response.json());
+    console.info('[line-token-exchange] success', {
+        scope: tokens.scope,
+        expiresIn: tokens.expires_in,
+    });
+    return tokens;
+}
+export async function loginWithLineIdToken(idToken) {
     const profile = await verifyLineIdToken(idToken);
     const user = await upsertLineUser({
         lineUserId: profile.sub,
@@ -36,6 +84,13 @@ export async function loginWithLine(idToken) {
     const token = issueJwt(user);
     return { user, token };
 }
+export async function loginWithAuthorizationCode(code, redirectUri) {
+    const tokens = await exchangeAuthorizationCode(code, redirectUri);
+    const result = await loginWithLineIdToken(tokens.id_token);
+    return { ...result, tokens };
+}
 export function issueJwt(user) {
     return jwt.sign({ userId: user.id }, env.JWT_SECRET, { expiresIn: '7d' });
 }
+// Backward compatibility for existing callers
+export const loginWithLine = loginWithLineIdToken;

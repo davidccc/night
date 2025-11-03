@@ -32,6 +32,50 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
+  app.get('/', (req, res, next) => {
+    const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+    const error = typeof req.query.error === 'string' ? req.query.error : undefined;
+
+    if (!token && !error) {
+      return next();
+    }
+
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="refresh" content="0;url=/">
+    <title>Processing login…</title>
+  </head>
+  <body>
+    <script>
+      (() => {
+        const token = ${JSON.stringify(token ?? null)};
+        const error = ${JSON.stringify(error ?? null)};
+        const tokenKey = 'night-king.auth.token';
+        const errorKey = 'night-king.auth.error';
+        try {
+          if (token) {
+            localStorage.setItem(tokenKey, token);
+          }
+          if (error) {
+            sessionStorage.setItem(errorKey, error);
+          } else {
+            sessionStorage.removeItem(errorKey);
+          }
+        } catch (storageError) {
+          console.warn('Failed to persist auth state', storageError);
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.delete('token');
+        url.searchParams.delete('error');
+        window.location.replace(url.pathname + url.search + url.hash || '/');
+      })();
+    </script>
+  </body>
+</html>`);
+  });
+
   app.get('/healthz', (_req, res) => {
     res.json({ status: 'ok' });
   });

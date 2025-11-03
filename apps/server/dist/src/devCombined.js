@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { getEnv } from './config/env.js';
-import { prisma } from './lib/prisma.js';
+import { closeDatabase, initDatabase } from './db/index.js';
 import { errorHandler } from './middleware/error.js';
 import { notFoundHandler } from './middleware/notFound.js';
 async function bootstrap() {
@@ -15,6 +15,7 @@ async function bootstrap() {
     }
     const env = getEnv();
     const isDev = env.NODE_ENV !== 'production';
+    await initDatabase();
     const currentFile = fileURLToPath(import.meta.url);
     const currentDir = dirname(currentFile);
     const webDir = resolve(currentDir, '../../web');
@@ -27,7 +28,7 @@ async function bootstrap() {
     });
     const handle = nextApp.getRequestHandler();
     await nextApp.prepare();
-    const app = createApp({ includeFallback: false });
+    const app = createApp({ includeFallback: false, applySecurityHeaders: false });
     app.all('*', (req, res) => void handle(req, res));
     app.use(notFoundHandler);
     app.use(errorHandler);
@@ -41,7 +42,9 @@ async function bootstrap() {
             if ('close' in nextApp && typeof nextApp.close === 'function') {
                 await nextApp.close();
             }
-            await prisma.$disconnect();
+            await closeDatabase().catch((error) => {
+                console.error('Failed to close database connection', error);
+            });
             process.exit(0);
         });
     };
