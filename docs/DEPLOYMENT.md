@@ -1,78 +1,106 @@
-# 部署指南
+# 部署指南（Railway + Vercel）
 
-此文件協助你在 Render (Server) + Vercel (Web) + PlanetScale (MySQL) 上部署小夜 LINE OMO 系統。
+本文說明如何將 Django 後端部署到 **Railway**，並將 Next.js 前端部署到 **Vercel**。預設資料庫為 Railway 的 MySQL Plugin，若改用其他 MySQL 供應商則調整 `DATABASE_URL` 即可。
+
+---
 
 ## 1. 必要環境變數
 
 | 變數 | 範圍 | 說明 |
 | ---- | ---- | ---- |
-| `PORT` | Server | 後端服務埠，預設 4000 |
-| `DATABASE_URL` | Server | PlanetScale / MySQL 連線字串，例如 `mysql://user:pass@host:3306/night-king` |
-| `JWT_SECRET` | Server | 自訂 JWT 簽章金鑰，高熵亂數 |
-| `LINE_CHANNEL_ACCESS_TOKEN` | Server | LINE Messaging API Channel access token |
-| `LINE_CHANNEL_SECRET` | Server | LINE Messaging API Channel secret |
-| `LINE_LOGIN_CHANNEL_ID` | Server / Web | LINE Login Channel ID，用於 LIFF 與 Verify |
-| `LINE_LOGIN_CHANNEL_SECRET` | Server | LINE Login Channel secret (以防線下驗證) |
-| `BASE_URL` | Server | 部署後端對外網址，供 Flex 圖片與 webhook 回傳 |
-| `CORS_ORIGIN` | Server | 允許的前端來源，開發可設 `http://localhost:3000` |
-| `LIFF_BASE_URL` | Server | LIFF App Endpoint URL，登入完成後的跳轉位置與 Flex `更多資訊` 連結 |
-| `NEXT_PUBLIC_API_BASE_URL` | Web | 指向後端 API，例如 `https://api.night-king.app` |
-| `E2E_BASE_URL` | Web (可選) | Playwright 測試基底網址 |
+| `DJANGO_SECRET_KEY` | 後端 | Django SECRET_KEY，建議使用高熵亂數 |
+| `DJANGO_DEBUG` | 後端 (可選) | 調試模式，生產請設為 `false` |
+| `ALLOWED_HOSTS` | 後端 | 可接受的 Host 名稱，以逗號分隔；Railway 可設 `*` 或指定域名 |
+| `DATABASE_URL` | 後端 | MySQL 連線字串，Railway Plugin 可直接複製 `MYSQL_PUBLIC_URL` |
+| `JWT_SECRET` | 後端 | JWT 簽章金鑰，需與前端一致 |
+| `LINE_CHANNEL_ACCESS_TOKEN` | 後端 | LINE Messaging API channel access token |
+| `LINE_CHANNEL_SECRET` | 後端 | LINE Messaging API channel secret |
+| `LINE_LOGIN_CHANNEL_ID` | 後端 / 前端 | LINE Login channel ID |
+| `LINE_LOGIN_CHANNEL_SECRET` | 後端 | LINE Login channel secret |
+| `BASE_URL` | 後端 | 後端公開網址，例如 `https://your-app.up.railway.app` |
+| `CORS_ORIGIN` | 後端 | 允許的前端來源，多個以逗號分隔 (例：`https://your-web.vercel.app`) |
+| `LIFF_BASE_URL` | 後端 | LIFF 頁面網址（通常是 Vercel 網址） |
+| `TIME_ZONE` | 後端 | 時區，預設 `Asia/Taipei` |
+| `NEXT_PUBLIC_API_BASE_URL` | 前端 | 指向後端 API（與 `BASE_URL` 相同） |
 
-所有變數範本可參考 `.env.example`。
+> 本地開發可複製 `.env.example` 後依實際需求調整；在 Railway / Vercel 上請改於控制台建立相同變數。
 
-> **LINE Login 設定提醒**：在 LINE Developers Console 中，將「LINE Login → Callback URL」設為 `${BASE_URL}/line/callback`，將「LIFF → Endpoint URL」設為 `LIFF_BASE_URL`。兩者需分別指向後端與前端，網址需完全一致（含協定與子路徑）。
+---
 
-## 2. 後端部署 (Render 示意)
+## 2. 後端部署（Railway）
 
-1. 在 Render 建立 Web Service，來源指向 Git repo。
-2. Build 命令：`npm install && npm run build:server`
-3. Start 命令：`npm --workspace=@night-king/server run start`
-4. 於 Render 設定全部 Server 端環境變數。
-5. 部署完成後取得 HTTPS 網址 (例：`https://night-king-server.onrender.com`)。
-6. 前往 LINE Developers → Messaging API → Webhook URL，填入 `https://night-king-server.onrender.com/webhook`，並按 Verify。
-
-> PlanetScale 使用者請先建立資料庫，取得 `DATABASE_URL`。若使用其他 MySQL，需要先執行 `npm run db:sync --workspace=@night-king/server` 同步資料表。
-
-## 3. 前端部署 (Vercel 示意)
-
-1. 導入 Git repo 至 Vercel。
-2. Build 命令：`npm run build:web`
-3. Output：`.vercel/output` (Vercel 自動處理)
-4. 於 Project Settings → Environment Variables 設定 `NEXT_PUBLIC_API_BASE_URL`（指向後端 API 網址）。
-5. 首次部署完成後，更新 LINE LIFF App 的 Endpoint URL 為 Vercel 網址。
-
-## 4. 資料庫初始化
-
+### 2.1 安裝與登入 CLI
 ```bash
-# 於本機或 CI 執行一次即可
-npm run db:sync --workspace=@night-king/server
-npm run db:seed --workspace=@night-king/server
+curl -fsSL https://railway.com/install.sh | sh
+railway login
+railway link -p <YOUR_PROJECT_ID>
 ```
 
-## 5. 自動化建議
+### 2.2 建立 MySQL Plugin
+1. 前往 Railway 專案頁面 → `New Plugin` → 選擇 **MySQL**。
+2. 建立完成後複製 `MYSQL_PUBLIC_URL`，貼到 `DATABASE_URL` 變數。
 
-- 建立 GitHub Actions Workflow：
-  - `on: pull_request`：安裝依賴 → `npm run test` → `npm run lint`。
-  - `on: push` (main)：同上，通過後觸發 Render / Vercel 部署。
-- 在 staging 環境執行 `npm run test:web -- test:e2e` 確保 UI 流程正常。
+### 2.3 新增後端服務
+1. 在 Railway 介面點 `+ New Service` → 選擇 **Dockerfile**。
+2. 服務名稱建議使用 `night`。
+3. Build 設定：
+   - Dockerfile path：`Dockerfile.server`
+   - Context：`./`
+4. 儲存後，在 **Variables** 中新增前述所有後端變數。
 
-## 6. 維運建議
+### 2.4 建置與部署
+```bash
+railway up --service night
+```
+完成後即可於服務首頁看到公開網址，例如 `https://night-production-xxxxx.up.railway.app`。請將此網址填回 `BASE_URL` 與前端 `NEXT_PUBLIC_API_BASE_URL`。
 
-- 啟用 PlanetScale Daily Backup，並設定只允許後端 Server IP 連線。
-- Render 可設定 Auto Deploy（Merge 後自動部署）以及 Health Check Path `/healthz`。
-- 若加入 CDN (Cloudflare)，請更新 Webhook URL 以確保 HTTPS 証書與 Header 未被移除。
-- 監控：
-  - LINE Webhook 錯誤會顯示於 Render Logs。
-- Sequelize 可搭配 PlanetScale Insights 或 APM（可加入未來 Roadmap）。
+### 2.5 執行資料庫遷移
+```bash
+railway run --service night "python manage.py migrate"
+```
+此指令會在雲端環境內執行 Django migrations，使資料表結構與 models 同步。
 
-## 7. 常見問題
+### 2.6 設定 LINE Webhook / LIFF
+1. Webhook URL：`https://your-app.up.railway.app/webhook`
+2. LINE Login Callback URL：`https://your-app.up.railway.app/line/callback`
+3. LIFF Endpoint：`https://your-web.vercel.app`
 
-| 問題 | 排查方式 |
+---
+
+## 3. 前端部署（Vercel）
+
+### 3.1 建立 Vercel 專案
+1. 前往 [Vercel](https://vercel.com/) → `New Project` → 匯入此 Git repo。
+2. Root Directory 請選擇 `apps/web`。
+3. 建置設定：
+   - Build Command：`npm run build:web`
+   - Install Command（預設即可）：`npm install`
+4. 在 `Environment Variables` 新增：
+   - `NEXT_PUBLIC_API_BASE_URL` = Railway 後端公開網址
+   - （如需）`LINE_LOGIN_CHANNEL_ID` 等前端使用的變數。
+
+### 3.2 部署與驗證
+1. 第一次部署完成後會取得類似 `https://your-web.vercel.app` 的網址。
+2. 將此網址更新至 Railway 的 `CORS_ORIGIN`、`LIFF_BASE_URL`，並於 LINE Console 的 LIFF Endpoint 使用此網址。
+3. 若有設定自訂網域，可在 Vercel → `Domains` 綁定。
+
+---
+
+## 4. 常見檢查項目
+
+| 情境 | 檢查項目 |
 | ---- | -------- |
-| Webhook 無回應 | 確認 `LINE_CHANNEL_*` 是否正確、Render Logs 是否顯示 200、Webhook URL 是否 HTTPS |
-| LIFF 無法登入 | 檢查 LINE Developers Console 中的 Callback URL 是否為 `${BASE_URL}/line/callback`，以及 LIFF Endpoint 是否與 `LIFF_BASE_URL` 相符，並確認 `NEXT_PUBLIC_API_BASE_URL` 指向同一網域 |
-| Sequelize 連線錯誤 | 檢查 `DATABASE_URL` 格式與白名單；PlanetScale 需使用 `?sslaccept=strict` |
-| JWT 驗證失敗 | 確保前後端 `JWT_SECRET` 一致，且 Bearer header 格式 `Authorization: Bearer <token>` |
+| Webhook 無回應 | 確認 Railway 服務已公開、環境變數填寫正確、LINE Webhook URL 使用 HTTPS |
+| LIFF 登入卡住 | Callback URL 是否為 `${BASE_URL}/line/callback`；前端 `NEXT_PUBLIC_API_BASE_URL` 是否指向同一網域；`LINE_LOGIN_*` 變數是否一致 |
+| CORS 失敗 | Railway `CORS_ORIGIN` 是否包含 Vercel 網域；Django 重新部署後是否生效 |
+| 資料庫連線錯誤 | `DATABASE_URL` 是否為 Railway 提供的 public proxy；若改用其它 MySQL，需確保 IP 白名單與 TLS 設定 |
+| 需要定時 migrate | 可在 Railway 建立自動化工作或於部署流程加入 `railway run --service night "python manage.py migrate"` |
 
-順利部署後，即可透過 Rich Menu 導向 LIFF，並使用預約 / Reward 功能。若需擴展 LINE Pay 或 CRM，建議另外建立微服務或在 Server 模組新增對應路由與 Sequelize Model。
+---
+
+## 5. 進階建議
+- 將 `scripts/start-backend.sh` 與 `.env` 當作開發環境專用，正式部署只透過 Railway/Vercel 控制台管理變數。
+- 若要執行 E2E 測試，可在本地啟動 Playwright（它會以 `http://localhost:3000` 為預設 base URL，無需再設 `E2E_BASE_URL`）。
+- 需要生產等級效能時，可在 `Dockerfile.server` 改用 Gunicorn / Uvicorn，並在 Railway Start Command 設為 WSGI/ASGI 伺服器。
+
+部署成功後，即可從 LINE LIFF 導向 Vercel 前端，並透過 Railway 後端處理 Webhook 與 API。祝順利！

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://railway.com/static/config.schema.json",
+  "services": {
+    "night": {
+      "build": {
+        "builder": "DOCKERFILE",
+        "config": {
+          "dockerfilePath": "Dockerfile.server",
+          "context": "."
+        }
+      }
+    }
+  }
+}
