@@ -1,4 +1,7 @@
 node_modules
 .next
 dist
-apps/server/dist
+.venv
+__pycache__/
+*.py[cod]
+db.sqlite3

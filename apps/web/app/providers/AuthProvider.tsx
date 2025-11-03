@@ -61,10 +61,7 @@ function readAuthParamsFromUrl() {
 }
 
 function buildAuthorizeUrl(redirectUrl: string) {
-  const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) {
-    throw new Error('缺少 NEXT_PUBLIC_API_BASE_URL 設定，無法建立登入網址。');
-  }
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
 
   try {
     const authorizeUrl = new URL('/line/authorize', `${base.replace(/\/+$/, '')}/`);
