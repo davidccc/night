@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "dist",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "@night-king/prisma": ["../../packages/prisma/dist/src/index.d.ts"]
+    }
+  },
+  "include": ["src", "tests", "vitest.config.ts"],
+  "exclude": ["dist"]
+}

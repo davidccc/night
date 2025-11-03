@@ -1,0 +1,38 @@
+FROM node:20-slim AS base
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NPM_CONFIG_PRODUCTION=false
+RUN apt-get update -y \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+FROM base AS deps
+WORKDIR /workspace
+COPY package.json package-lock.json tsconfig.base.json ./
+COPY apps/server/package.json apps/server/
+COPY apps/web/package.json apps/web/
+COPY packages/prisma/package.json packages/prisma/
+RUN npm ci --include=dev
+
+FROM base AS builder
+ARG PRISMA_DUMMY_DB="mysql://user:pass@localhost:3306/db"
+WORKDIR /workspace
+COPY --from=deps /workspace/node_modules ./node_modules
+COPY . .
+RUN cd packages/prisma && DATABASE_URL="$PRISMA_DUMMY_DB" npx prisma generate
+RUN npm run build:web
+RUN mkdir -p apps/web/public
+RUN npm prune --omit=dev
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8080
+COPY --from=builder /workspace/node_modules ./node_modules
+COPY --from=builder /workspace/apps/web/.next ./apps/web/.next
+COPY --from=builder /workspace/apps/web/package.json ./apps/web/package.json
+COPY --from=builder /workspace/apps/web/next.config.mjs ./apps/web/next.config.mjs
+COPY --from=builder /workspace/apps/web/public ./apps/web/public
+COPY --from=builder /workspace/package.json ./package.json
+COPY --from=builder /workspace/package-lock.json ./package-lock.json
+EXPOSE 8080
+CMD ["sh", "-c", "cd apps/web && npm run start -- -p ${PORT:-8080}"]

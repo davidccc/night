@@ -1,0 +1,33 @@
+{
+  "name": "night-king-line-omo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Monorepo for the Night-king LINE OMO system (LINE Bot + LIFF Web + MySQL).",
+  "workspaces": [
+    "apps/server",
+    "apps/web",
+    "packages/prisma"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=@night-king/server",
+    "dev:server": "npm run dev --workspace=@night-king/server",
+    "dev:app": "npm run dev:combined --workspace=@night-king/server",
+    "dev:web": "npm run dev --workspace=@night-king/web",
+    "build": "npm run build --workspace=@night-king/server && npm run build --workspace=@night-king/web",
+    "build:server": "npm run build --workspace=@night-king/server",
+    "build:web": "npm run build --workspace=@night-king/web",
+    "test": "npm run test --workspace=@night-king/server && npm run test --workspace=@night-king/web",
+    "test:server": "npm run test --workspace=@night-king/server",
+    "test:web": "npm run test --workspace=@night-king/web",
+    "lint": "npm run lint --workspace=@night-king/server && npm run lint --workspace=@night-king/web",
+    "format": "biome format --write .",
+    "prisma:generate": "npm run generate --workspace=@night-king/prisma",
+    "prisma:push": "npm run db:push --workspace=@night-king/prisma",
+    "prisma:migrate": "npm run migrate --workspace=@night-king/prisma",
+    "prisma:seed": "npm run seed --workspace=@night-king/prisma"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.8.3",
+    "typescript": "^5.6.2"
+  }
+}

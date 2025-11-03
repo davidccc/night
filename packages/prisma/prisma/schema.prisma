@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-1.1.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int           @id @default(autoincrement())
+  lineUserId    String        @unique @map("line_user_id")
+  displayName   String?       @map("display_name")
+  avatar        String?
+  rewardPoints  Int           @default(0) @map("reward_points")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  bookings      Booking[]
+  rewardLogs    RewardLog[]
+
+  @@map("users")
+}
+
+model Sweet {
+  id        Int       @id @default(autoincrement())
+  name      String
+  description String  @map("description")
+  imageUrl  String?   @map("image_url")
+  tag       String?
+  bookings  Booking[]
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("sweets")
+}
+
+model Booking {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  sweetId   Int      @map("sweet_id")
+  date      DateTime
+  timeSlot  String   @map("time_slot")
+  status    BookingStatus @default(PENDING) @map("status")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id])
+  sweet  Sweet  @relation(fields: [sweetId], references: [id])
+
+  @@index([userId])
+  @@index([sweetId])
+  @@index([status])
+  @@map("bookings")
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model RewardLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  delta     Int
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+
+  @@map("reward_logs")
+}
