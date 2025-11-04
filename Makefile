@@ -6,6 +6,7 @@ setup:
 
 # 部署後端至 Railway，假設已 link 並設定 service=night
 backend:
+	python3 scripts/sync_env_to_railway.py --service night
 	railway up --service night
 
 # 在 Railway 後端執行 Django migrations

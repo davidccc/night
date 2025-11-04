@@ -50,9 +50,9 @@ railway link -p <YOUR_PROJECT_ID>
 
 ### 2.4 建置與部署
 ```bash
-railway up --service night
+make backend
 ```
-完成後即可於服務首頁看到公開網址，例如 `https://night-production-xxxxx.up.railway.app`。請將此網址填回 `BASE_URL` 與前端 `NEXT_PUBLIC_API_BASE_URL`。
+此指令會先將 `.env` 內的環境變數同步到 Railway 的 `night` 服務，再觸發部署。部署完成後即可於服務首頁看到公開網址，例如 `https://night-production-xxxxx.up.railway.app`。請將此網址填回 `BASE_URL` 與前端 `NEXT_PUBLIC_API_BASE_URL`。
 
 ### 2.5 執行資料庫遷移
 ```bash
