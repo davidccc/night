@@ -57,14 +57,7 @@ def main() -> int:
         return 0
 
     for key, value in env_values.items():
-        cmd = [
-            "railway",
-            "variables",
-            "set",
-            f"{key}={value}",
-            "--service",
-            args.service,
-        ]
+        cmd = ["railway", "variables", "--set", f"{key}={value}", "--service", args.service]
         print(f"Setting {key} on service {args.service}")
         subprocess.run(cmd, check=True)
 
