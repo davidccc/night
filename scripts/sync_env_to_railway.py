@@ -30,6 +30,10 @@ def parse_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def chunk_pairs(pairs: list[tuple[str, str]], size: int = 10) -> list[list[tuple[str, str]]]:
+    return [pairs[i : i + size] for i in range(0, len(pairs), size)]
+
+
 def main() -> int:
     repo_root = Path(__file__).resolve().parent.parent
 
@@ -56,9 +60,13 @@ def main() -> int:
         print(f"No environment variables found in {args.env_file}")
         return 0
 
-    for key, value in env_values.items():
-        cmd = ["railway", "variables", "--set", f"{key}={value}", "--service", args.service]
-        print(f"Setting {key} on service {args.service}")
+    items = list(env_values.items())
+    for chunk in chunk_pairs(items):
+        cmd = ["railway", "variables", "--service", args.service, "--skip-deploys"]
+        pretty_keys = ", ".join(key for key, _ in chunk)
+        for key, value in chunk:
+            cmd.extend(["--set", f"{key}={value}"])
+        print(f"Setting [{pretty_keys}] on service {args.service}")
         subprocess.run(cmd, check=True)
 
     return 0

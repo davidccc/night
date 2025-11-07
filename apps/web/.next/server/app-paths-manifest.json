@@ -1,6 +1,11 @@
 {
+  "/(pages)/profile/page": "app/(pages)/profile/page.js",
   "/_not-found/page": "app/_not-found/page.js",
+  "/(pages)/records/page": "app/(pages)/records/page.js",
   "/(pages)/sweet/page": "app/(pages)/sweet/page.js",
-  "/page": "app/page.js",
-  "/(pages)/records/page": "app/(pages)/records/page.js"
+  "/(pages)/booking/page": "app/(pages)/booking/page.js",
+  "/(pages)/reward/page": "app/(pages)/reward/page.js",
+  "/(pages)/tea/page": "app/(pages)/tea/page.js",
+  "/(pages)/sweet/[id]/page": "app/(pages)/sweet/[id]/page.js",
+  "/page": "app/page.js"
 }

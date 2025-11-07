@@ -9,12 +9,10 @@ import type { ReactNode } from 'react';
 import { useAuth } from '../providers/AuthProvider';
 
 const navItems = [
-  { href: '/', label: '首頁' },
   { href: '/sweet', label: '甜心列表' },
-  { href: '/booking', label: '預約' },
   { href: '/records', label: '預約紀錄' },
   { href: '/reward', label: '積分卡' },
-  { href: '/profile', label: '個人檔案' },
+  { href: '/tea', label: '約茶經驗分享' },
 ] satisfies ReadonlyArray<{ href: Route; label: string }>;
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -25,13 +23,10 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-white text-slate-900">
       <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-brand-gray">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-pink text-white font-semibold">
-              XO
-            </div>
-            <div>
-              <p className="text-lg font-semibold">小夜 OMO</p>
-              <p className="text-xs text-slate-500">LINE Bot × LIFF 預約系統</p>
+          <Link href="/sweet" className="flex items-center gap-3">
+            <Image src="/logo.png" alt="小夜 X 專業茶" width={60} height={60} className="h-12 w-12 object-contain" priority />
+            <div className="leading-tight">
+              <p className="text-xl font-semibold whitespace-nowrap text-brand-pink tracking-wide">小夜 X 專業茶</p>
             </div>
           </Link>
           <nav className="hidden gap-4 md:flex">
@@ -52,23 +47,25 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3">
             {status === 'authenticated' && user ? (
               <div className="flex items-center gap-2">
-                {user.avatar ? (
-                  <Image
-                    src={user.avatar}
-                    alt={user.displayName ?? '用戶頭像'}
-                    width={36}
-                    height={36}
-                    className="h-9 w-9 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-light text-brand-pink">
-                    {user.displayName?.charAt(0) ?? '用戶'}
+                <Link href="/profile" className="flex items-center gap-2">
+                  {user.avatar ? (
+                    <Image
+                      src={user.avatar}
+                      alt={user.displayName ?? '用戶頭像'}
+                      width={36}
+                      height={36}
+                      className="h-9 w-9 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-light text-brand-pink">
+                      {user.displayName?.charAt(0) ?? '用戶'}
+                    </div>
+                  )}
+                  <div className="hidden text-left text-sm leading-tight md:block">
+                    <p className="font-medium">{user.displayName ?? 'LINE 用戶'}</p>
+                    <p className="text-xs text-slate-500">積分 {user.rewardPoints}</p>
                   </div>
-                )}
-                <div className="hidden text-left text-sm leading-tight md:block">
-                  <p className="font-medium">{user.displayName ?? 'LINE 用戶'}</p>
-                  <p className="text-xs text-slate-500">積分 {user.rewardPoints}</p>
-                </div>
+                </Link>
                 <button
                   onClick={logout}
                   className="rounded-full border border-brand-gray px-3 py-1 text-xs text-slate-600 hover:bg-brand-light"
@@ -107,7 +104,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </main>
       <footer className="pb-10 text-center text-xs text-slate-400">
-        © {new Date().getFullYear()} 小夜 LINE OMO 系統. 保留所有權利。
+        <div className="space-y-1">
+          <p>LINE Bot × LIFF 預約系統</p>
+          <p>© {new Date().getFullYear()} 夜王科技系統. 保留所有權利。</p>
+        </div>
       </footer>
     </div>
   );

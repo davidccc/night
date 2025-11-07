@@ -42,7 +42,7 @@ def upsert_line_user(*, line_user_id: str, display_name: str | None, avatar: str
             changed = True
         if changed:
             user.save(update_fields=["display_name", "avatar", "updated_at"])
-    return user
+        return user
 
 
 def adjust_reward_points(*, user: LineUser, delta: int, reason: str) -> LineUser:
@@ -54,8 +54,11 @@ def adjust_reward_points(*, user: LineUser, delta: int, reason: str) -> LineUser
         return user
 
 
-def list_sweets() -> Iterable[Sweet]:
-    return Sweet.objects.all()
+def list_sweets(*, location_slug: str | None = None) -> Iterable[Sweet]:
+    queryset = Sweet.objects.select_related("location").order_by("id")
+    if location_slug:
+        queryset = queryset.filter(location__slug=location_slug)
+    return queryset
 
 
 def create_booking(
@@ -71,7 +74,7 @@ def create_booking(
         raise ValueError("Invalid booking date")
 
     with transaction.atomic():
-        sweet = Sweet.objects.select_for_update().get(id=sweet_id)
+        sweet = Sweet.objects.select_for_update().select_related("location").get(id=sweet_id)
         booking = Booking.objects.create(
             user=user,
             sweet=sweet,
@@ -91,7 +94,11 @@ def create_booking(
 
 
 def list_bookings_for_user(user: LineUser) -> Iterable[Booking]:
-    return Booking.objects.select_related("sweet").filter(user=user).order_by("-created_at")
+    return (
+        Booking.objects.select_related("sweet", "sweet__location")
+        .filter(user=user)
+        .order_by("-created_at")
+    )
 
 
 def get_reward_summary(user: LineUser) -> Tuple[LineUser, Iterable[RewardLog]]:

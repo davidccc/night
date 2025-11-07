@@ -9,9 +9,9 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          pink: '#FF5A8C',
-          light: '#FFD6E5',
-          gray: '#DDDDDD',
+          pink: '#C04A7A',
+          light: '#F6D5DF',
+          gray: '#D8B7C0',
         },
       },
     },

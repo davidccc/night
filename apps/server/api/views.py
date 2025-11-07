@@ -56,7 +56,8 @@ class SweetsView(APIView):
     authentication_classes = [LineJWTAuthentication]
 
     def get(self, request):
-        sweets = services.list_sweets()
+        location_slug = request.GET.get("location")
+        sweets = services.list_sweets(location_slug=location_slug)
         data = SweetSerializer(sweets, many=True).data
         return Response({"sweets": data})
 

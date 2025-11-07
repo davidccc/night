@@ -51,6 +51,10 @@ cp .env.example .env
 | `bash scripts/start-backend.sh` | 啟動 Django REST API + LINE Webhook (http://localhost:8000) |
 | `npm run dev:web`               | 啟動 LIFF Web 前端 (http://localhost:3000) |
 
+- 匯入甜心資料：將文字與圖片資源放在 `res/<地區>/` 目錄後，執行 `python manage.py import_sweets`
+  （位置於 `apps/server`，可搭配 `--dry-run` 先檢查解析結果）。該指令會自動建立/更新 `sweet_tab`
+  資料並將圖片複製到 `apps/web/public/sweets/<slug>/`，部署後即可公開存取。
+
 - 後端啟動後，可透過 `GET /healthz` 檢查健康狀態。
 - LIFF 前端會自動導向 `/line/authorize` 進行 LINE Login 授權。請確保前端 `.env` 中的 `NEXT_PUBLIC_API_BASE_URL` 指向後端網址，並在 LINE Developers Console 設定 Callback URL 為 `${BASE_URL}/line/callback`。
 - 若需對外測試（LIFF/LINE Webhook），可再執行 `ngrok http 3000`，即可取得公開 HTTPS 入口（預設檢視面板為 http://127.0.0.1:4040）。
@@ -76,6 +80,8 @@ cp .env.example .env
    - `LINE_LOGIN_CHANNEL_ID`, `LINE_LOGIN_CHANNEL_SECRET`
    - `BASE_URL`（後端公開網址，例如 https://your-railway-app.up.railway.app）
    - `CORS_ORIGIN`, `LIFF_BASE_URL`（前端網址，如 https://your-vercel-app.vercel.app）
+   - （可選）`NEXT_PUBLIC_LINE_CUSTOMER_URL`（前端使用，指向 LINE 客服入口）
+   - （可選）`NEXT_PUBLIC_LINE_CUSTOMER_OA_ID`（若填入 OA ID，例如 `@night`, 「客服預約」按鈕會直接開啟訊息視窗並附上預設文字）
 3. 部署完成後在 LINE Developers console 綁定 Webhook：`https://your-railway-app.up.railway.app/webhook`
 
 ### 前端（Next.js / LIFF）
