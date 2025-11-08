@@ -4,9 +4,11 @@ from datetime import datetime
 from typing import Iterable, Tuple
 
 from django.db import transaction
+from django.db.models import Avg, Count, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from .models import Booking, LineUser, RewardLog, Sweet
+from .models import Booking, LineUser, RewardLog, Sweet, SweetReview
 
 
 def get_user_by_id(user_id: int) -> LineUser | None:
@@ -55,7 +57,14 @@ def adjust_reward_points(*, user: LineUser, delta: int, reason: str) -> LineUser
 
 
 def list_sweets(*, location_slug: str | None = None) -> Iterable[Sweet]:
-    queryset = Sweet.objects.select_related("location").order_by("id")
+    queryset = (
+        Sweet.objects.select_related("location")
+        .annotate(
+            average_rating=Coalesce(Avg("reviews__rating"), Value(0.0)),
+            review_count=Coalesce(Count("reviews"), Value(0)),
+        )
+        .order_by("id")
+    )
     if location_slug:
         queryset = queryset.filter(location__slug=location_slug)
     return queryset
@@ -129,3 +138,30 @@ def parse_date(raw: str) -> datetime | None:
         except ValueError:
             continue
     return None
+
+
+def list_reviews_for_sweet(sweet_id: int) -> Iterable[SweetReview]:
+    return SweetReview.objects.select_related("user").filter(sweet_id=sweet_id).order_by("-created_at")
+
+
+def create_review(*, user: LineUser, sweet_id: int, rating: int, comment: str) -> SweetReview:
+    if rating < 1 or rating > 5:
+        raise ValueError("Rating must be between 1 and 5")
+    sweet = Sweet.objects.get(id=sweet_id)
+    review = SweetReview.objects.create(
+        sweet=sweet,
+        user=user,
+        rating=rating,
+        comment=comment,
+    )
+    return review
+
+
+def get_review_summary(sweet_id: int) -> Tuple[float, int]:
+    aggregate = SweetReview.objects.filter(sweet_id=sweet_id).aggregate(
+        average_rating=Avg("rating"),
+        review_count=Count("id"),
+    )
+    average_rating = float(aggregate["average_rating"] or 0)
+    review_count = int(aggregate["review_count"] or 0)
+    return average_rating, review_count

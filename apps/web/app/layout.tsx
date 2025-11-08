@@ -9,7 +9,7 @@ import { AuthProvider } from './providers/AuthProvider';
 const noto = Noto_Sans_TC({ subsets: ['latin'], display: 'swap' });
 
 export const metadata: Metadata = {
-  title: '小夜 LINE OMO 系統',
+  title: '小夜X專業茶',
   description: '整合 LINE Bot 與 LIFF 的預約與積分平台',
 };
 

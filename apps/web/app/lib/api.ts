@@ -34,6 +34,8 @@ export interface ApiSweet {
   longPrice?: number | null;
   shortPrice?: number | null;
   updateTime?: string | null;
+  averageRating?: number | null;
+  reviewCount?: number;
 }
 
 export interface ApiBooking {
@@ -57,6 +59,14 @@ export interface RewardSummary {
   id: number;
   rewardPoints: number;
   logs: ApiRewardLog[];
+}
+
+export interface ApiSweetReview {
+  id: number;
+  rating: number;
+  comment: string;
+  userDisplayName: string;
+  createdAt: string;
 }
 
 interface RequestOptions {
@@ -124,6 +134,8 @@ type RawSweet = {
   long_price?: number | null;
   short_price?: number | null;
   update_time?: string | null;
+  average_rating?: number | null;
+  review_count?: number | null;
 };
 
 function normalizeSweet(raw: RawSweet): ApiSweet {
@@ -147,6 +159,8 @@ function normalizeSweet(raw: RawSweet): ApiSweet {
     longPrice: raw.long_price ?? null,
     shortPrice: raw.short_price ?? null,
     updateTime: raw.update_time ?? null,
+    averageRating: typeof raw.average_rating === 'number' ? raw.average_rating : null,
+    reviewCount: typeof raw.review_count === 'number' ? raw.review_count : 0,
   };
 }
 
@@ -185,6 +199,24 @@ function normalizeRewardLog(raw: RawRewardLog): ApiRewardLog {
     delta: raw.delta,
     reason: raw.reason,
     createdAt: raw.created_at,
+  };
+}
+
+type RawSweetReview = {
+  id: number;
+  rating: number;
+  comment: string;
+  created_at: string;
+  userDisplayName: string;
+};
+
+function normalizeSweetReview(raw: RawSweetReview): ApiSweetReview {
+  return {
+    id: raw.id,
+    rating: raw.rating,
+    comment: raw.comment,
+    createdAt: raw.created_at,
+    userDisplayName: raw.userDisplayName,
   };
 }
 
@@ -232,6 +264,47 @@ export async function fetchSweets(token: string, params?: { location?: string })
   const search = params?.location ? `?location=${encodeURIComponent(params.location)}` : '';
   const result = await apiFetch<{ sweets: RawSweet[] }>(`/api/sweets${search}`, { token });
   return { sweets: result.sweets.map(normalizeSweet) };
+}
+
+export async function fetchSweetReviews(token: string, sweetId: number) {
+  const result = await apiFetch<{
+    reviews: RawSweetReview[];
+    summary: { averageRating?: number | null; reviewCount?: number | null };
+  }>(`/api/sweets/${sweetId}/reviews`, {
+    token,
+  });
+  return {
+    reviews: result.reviews.map(normalizeSweetReview),
+    summary: {
+      averageRating:
+        typeof result.summary?.averageRating === 'number' ? result.summary.averageRating : 0,
+      reviewCount: typeof result.summary?.reviewCount === 'number' ? result.summary.reviewCount : 0,
+    },
+  };
+}
+
+export async function createSweetReview(
+  token: string,
+  sweetId: number,
+  data: { rating: number; comment: string },
+) {
+  const result = await apiFetch<{
+    review: RawSweetReview;
+    summary: { averageRating?: number | null; reviewCount?: number | null };
+  }>(`/api/sweets/${sweetId}/reviews`, {
+    method: 'POST',
+    token,
+    data,
+  });
+
+  return {
+    review: normalizeSweetReview(result.review),
+    summary: {
+      averageRating:
+        typeof result.summary?.averageRating === 'number' ? result.summary.averageRating : 0,
+      reviewCount: typeof result.summary?.reviewCount === 'number' ? result.summary.reviewCount : 0,
+    },
+  };
 }
 
 export async function createBooking(

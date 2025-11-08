@@ -24,9 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-brand-gray">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
           <Link href="/sweet" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="小夜 X 專業茶" width={60} height={60} className="h-12 w-12 object-contain" priority />
+            <Image src="/logo.png" alt="小夜X專業茶" width={60} height={60} className="h-12 w-12 object-contain" priority />
             <div className="leading-tight">
-              <p className="text-xl font-semibold whitespace-nowrap text-brand-pink tracking-wide">小夜 X 專業茶</p>
+              <p className="text-xl font-semibold whitespace-nowrap text-brand-pink tracking-wide">小夜X專業茶</p>
             </div>
           </Link>
           <nav className="hidden gap-4 md:flex">

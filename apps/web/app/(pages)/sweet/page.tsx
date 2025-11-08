@@ -7,7 +7,10 @@ import { useRouter } from 'next/navigation';
 
 import type { ApiSweet } from '../../lib/api';
 import { fetchSweets } from '../../lib/api';
+import { formatDateTime } from '../../lib/datetime';
 import { useAuth } from '../../providers/AuthProvider';
+import { RatingStars } from '../../components/RatingStars';
+import { LocationDock } from './LocationDock';
 
 export default function SweetPage() {
   const { token, status } = useAuth();
@@ -18,6 +21,9 @@ export default function SweetPage() {
   const router = useRouter();
   const lineCustomerUrl = process.env.NEXT_PUBLIC_LINE_CUSTOMER_URL ?? '';
   const lineCustomerOaId = process.env.NEXT_PUBLIC_LINE_CUSTOMER_OA_ID ?? '';
+  const handleSelectLocation = (slug: string) => {
+    setSelectedLocation(slug);
+  };
 
   useEffect(() => {
     if (status !== 'authenticated' || !token) {
@@ -103,106 +109,151 @@ export default function SweetPage() {
     }
   };
 
+  const displayRating = (value?: number | null) =>
+    typeof value === 'number' && !Number.isNaN(value) && value > 0 ? value.toFixed(1) : '—';
+
   return (
-    <div className="space-y-4">
-      <h1 className="text-xl font-semibold text-brand-pink">甜心列表</h1>
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setSelectedLocation('ALL')}
-          className={`rounded-full px-4 py-1 text-sm ${
-            selectedLocation === 'ALL'
-              ? 'bg-brand-pink text-white shadow'
-              : 'border border-brand-light text-brand-pink hover:bg-brand-light/60'
-          }`}
-        >
-          全部地點
-        </button>
-        {locations.map((location) => (
+    <div className="relative">
+      <LocationDock locations={locations} selectedLocation={selectedLocation} onSelect={handleSelectLocation} />
+      <div className="space-y-4 md:pl-[280px]">
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-semibold text-brand-pink">甜心列表</h1>
+          <p className="text-xs text-slate-400 hidden md:block">拖曳左側選單即可快速切換地點</p>
+        </div>
+        <div className="flex flex-wrap gap-2 md:hidden">
           <button
-            key={location.slug}
             type="button"
-            onClick={() => setSelectedLocation(location.slug)}
+            onClick={() => setSelectedLocation('ALL')}
             className={`rounded-full px-4 py-1 text-sm ${
-              selectedLocation === location.slug
+              selectedLocation === 'ALL'
                 ? 'bg-brand-pink text-white shadow'
                 : 'border border-brand-light text-brand-pink hover:bg-brand-light/60'
             }`}
           >
-            {location.name}
+            全部地點
           </button>
-        ))}
-      </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {filteredSweets.map((sweet) => (
-          <article key={sweet.id} className="flex flex-col justify-between rounded-2xl border border-brand-light bg-white p-4 shadow-sm">
-            <div>
-              {sweet.imageUrl && (
-                <Link href={`/sweet/${sweet.id}`} className="relative mb-3 block w-full overflow-hidden rounded-xl bg-white" style={{ aspectRatio: '3 / 4' }}>
-                  <Image src={sweet.imageUrl} alt={sweet.name} fill className="object-contain transition duration-300 hover:scale-[1.02]" sizes="(min-width: 768px) 50vw, 100vw" priority={false} />
+          {locations.map((location) => (
+            <button
+              key={location.slug}
+              type="button"
+              onClick={() => setSelectedLocation(location.slug)}
+              className={`rounded-full px-4 py-1 text-sm ${
+                selectedLocation === location.slug
+                  ? 'bg-brand-pink text-white shadow'
+                  : 'border border-brand-light text-brand-pink hover:bg-brand-light/60'
+              }`}
+            >
+              {location.name}
+            </button>
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {filteredSweets.map((sweet) => (
+            <article
+              key={sweet.id}
+              className="flex flex-col justify-between rounded-2xl border border-brand-light bg-white p-4 shadow-sm"
+            >
+              <div>
+                {sweet.imageUrl && (
+                  <Link
+                    href={`/sweet/${sweet.id}`}
+                    className="relative mb-3 block w-full overflow-hidden rounded-xl bg-white"
+                    style={{ aspectRatio: '3 / 4' }}
+                  >
+                    <Image
+                      src={sweet.imageUrl}
+                      alt={sweet.name}
+                      fill
+                      className="object-contain transition duration-300 hover:scale-[1.02]"
+                      sizes="(min-width: 768px) 50vw, 100vw"
+                      priority={false}
+                    />
+                  </Link>
+                )}
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-lg font-semibold text-slate-800">{sweet.name}</h2>
+                  {sweet.code && (
+                    <span className="rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-pink">
+                      {sweet.code}
+                    </span>
+                  )}
+                </div>
+                {sweet.location && (
+                  <p className="mt-1 text-xs text-slate-500">地點：{sweet.location.name}</p>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <RatingStars rating={sweet.averageRating ?? 0} size="sm" />
+                  <span className="text-xs text-slate-500">
+                    {displayRating(sweet.averageRating)} / 5 · {sweet.reviewCount ?? 0} 則評論
+                  </span>
+                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
+                  {[
+                    { label: '國籍', value: sweet.nationality },
+                    { label: '年齡', value: sweet.ageText },
+                    { label: '身高', value: sweet.heightCm ? `${sweet.heightCm} cm` : null },
+                    { label: '體重', value: sweet.weightKg ? `${sweet.weightKg} kg` : null },
+                    { label: '罩杯', value: sweet.cup },
+                    { label: '環境', value: sweet.environment },
+                    {
+                      label: '長鍾',
+                      value: sweet.longDurationMinutes
+                        ? `${sweet.longDurationMinutes} 分鐘 / $${sweet.longPrice ?? ''}`
+                        : null,
+                    },
+                    {
+                      label: '短鍾',
+                      value: sweet.shortDurationMinutes
+                        ? `${sweet.shortDurationMinutes} 分鐘 / $${sweet.shortPrice ?? ''}`
+                        : null,
+                    },
+                    { label: '服務', value: sweet.serviceType },
+                    { label: '更新', value: sweet.updateTime ? formatDateTime(sweet.updateTime) : null },
+                  ]
+                    .filter((item) => item.value)
+                    .map((item) => (
+                      <div key={`${sweet.id}-${item.label}`} className="flex flex-col rounded-xl bg-slate-50 p-2">
+                        <dt className="text-[11px] font-semibold text-brand-pink">{item.label}</dt>
+                        <dd>{item.value}</dd>
+                      </div>
+                    ))}
+                </dl>
+                {sweet.tag && (
+                  <span className="mt-3 inline-flex rounded-full bg-brand-light px-3 py-1 text-xs text-brand-pink">
+                    #{sweet.tag}
+                  </span>
+                )}
+              </div>
+              <div className="mt-4 flex flex-col gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/booking?sweetId=${sweet.id}`)}
+                    className="flex-1 rounded-full bg-brand-pink px-4 py-2 text-sm font-medium text-white shadow transition hover:opacity-90"
+                  >
+                    線上預約
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCustomerBooking(sweet)}
+                    className="flex-1 rounded-full border border-brand-pink px-4 py-2 text-sm font-medium text-brand-pink shadow transition hover:bg-brand-light/40"
+                  >
+                    客服預約
+                  </button>
+                </div>
+                <Link
+                  href={`/sweet/${sweet.id}`}
+                  className="text-center text-xs font-medium text-brand-pink underline-offset-4 hover:underline"
+                >
+                  查看詳情與評價
                 </Link>
-              )}
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 className="text-lg font-semibold text-slate-800">{sweet.name}</h2>
-                {sweet.code && <span className="rounded-full bg-brand-light px-2 py-0.5 text-xs font-medium text-brand-pink">{sweet.code}</span>}
+                <p className="text-xs text-slate-400">
+                  線上預約可直接填表，若需協助可點「客服預約」複製訊息並開啟 LINE 客服。
+                </p>
               </div>
-              {sweet.location && <p className="mt-1 text-xs text-slate-500">地點：{sweet.location.name}</p>}
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-500">
-                {[
-                  { label: '國籍', value: sweet.nationality },
-                  { label: '年齡', value: sweet.ageText },
-                  { label: '身高', value: sweet.heightCm ? `${sweet.heightCm} cm` : null },
-                  { label: '體重', value: sweet.weightKg ? `${sweet.weightKg} kg` : null },
-                  { label: '罩杯', value: sweet.cup },
-                  { label: '環境', value: sweet.environment },
-                  {
-                    label: '長鍾',
-                    value: sweet.longDurationMinutes ? `${sweet.longDurationMinutes} 分鐘 / $${sweet.longPrice ?? ''}` : null,
-                  },
-                  {
-                    label: '短鍾',
-                    value: sweet.shortDurationMinutes ? `${sweet.shortDurationMinutes} 分鐘 / $${sweet.shortPrice ?? ''}` : null,
-                  },
-                  { label: '服務', value: sweet.serviceType },
-                  { label: '更新', value: sweet.updateTime ? new Date(sweet.updateTime).toLocaleString() : null },
-                ]
-                  .filter((item) => item.value)
-                  .map((item) => (
-                    <div key={`${sweet.id}-${item.label}`} className="flex flex-col rounded-xl bg-slate-50 p-2">
-                      <dt className="text-[11px] font-semibold text-brand-pink">{item.label}</dt>
-                      <dd>{item.value}</dd>
-                    </div>
-                  ))}
-              </dl>
-              {sweet.tag && <span className="mt-3 inline-flex rounded-full bg-brand-light px-3 py-1 text-xs text-brand-pink">#{sweet.tag}</span>}
-            </div>
-            <div className="mt-4 flex flex-col gap-2">
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => router.push(`/booking?sweetId=${sweet.id}`)}
-                  className="flex-1 rounded-full bg-brand-pink px-4 py-2 text-sm font-medium text-white shadow transition hover:opacity-90"
-                >
-                  線上預約
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleCustomerBooking(sweet)}
-                  className="flex-1 rounded-full border border-brand-pink px-4 py-2 text-sm font-medium text-brand-pink shadow transition hover:bg-brand-light/40"
-                >
-                  客服預約
-                </button>
-              </div>
-              <Link
-                href={`/sweet/${sweet.id}`}
-                className="text-center text-xs font-medium text-brand-pink underline-offset-4 hover:underline"
-              >
-                查看詳情與評價
-              </Link>
-              <p className="text-xs text-slate-400">線上預約可直接填表，若需協助可點「客服預約」複製訊息並開啟 LINE 客服。</p>
-            </div>
-          </article>
-        ))}
+            </article>
+          ))}
+        </div>
       </div>
     </div>
   );

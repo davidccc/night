@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -95,6 +96,37 @@ class Sweet(models.Model):
         prefix = self.location.code_prefix if self.location_id else "SW"
         base = str(self.pk or 0).zfill(4)[-4:]
         return f"{prefix}{base}"
+
+
+class SweetReview(models.Model):
+    sweet = models.ForeignKey(
+        Sweet,
+        related_name="reviews",
+        on_delete=models.CASCADE,
+        db_column="sweet_id",
+        db_constraint=False,
+    )
+    user = models.ForeignKey(
+        LineUser,
+        related_name="sweet_reviews",
+        on_delete=models.CASCADE,
+        db_column="user_id",
+        db_constraint=False,
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        db_column="rating",
+    )
+    comment = models.TextField(blank=True, db_column="comment")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+
+    class Meta:
+        db_table = "sweet_review_tab"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.sweet_id} review by {self.user_id}"
 
 
 class Booking(models.Model):

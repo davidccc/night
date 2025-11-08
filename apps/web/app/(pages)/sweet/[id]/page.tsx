@@ -3,44 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
-import type { ApiSweet } from '../../../lib/api';
-import { fetchSweets } from '../../../lib/api';
+import type { ApiSweet, ApiSweetReview } from '../../../lib/api';
+import { createSweetReview, fetchSweetReviews, fetchSweets } from '../../../lib/api';
+import { formatDateTime } from '../../../lib/datetime';
+import { RatingStars } from '../../../components/RatingStars';
 import { useAuth } from '../../../providers/AuthProvider';
-
-const reviewPool = [
-  {
-    title: '親切自然，對談沒有壓力',
-    body: '顧問先提醒可聊的話題，甜心也會主動分享生活。整體氛圍非常放鬆。',
-    author: 'Eason · 科技業',
-  },
-  {
-    title: '準時又細心的安排',
-    body: '抵達前 30 分鐘客服再次確認，整個流程無需等待，讓人很安心。',
-    author: 'Wesley · 醫療顧問',
-  },
-  {
-    title: '照片與本人一致',
-    body: '甜心本人的氣質與照片完全相符，甚至更好，毫無翻車風險。',
-    author: 'Marcus · 投資人',
-  },
-  {
-    title: '聊天內容有深度',
-    body: '她不只外型亮眼，談吐也很成熟，對工作與生活都有自己的見解。',
-    author: 'Ken · 自營商',
-  },
-];
-
-function buildSweetStats(sweet: ApiSweet) {
-  const seed = sweet.id ?? 0;
-  return {
-    bookingCount: 80 + (seed % 40) * 5,
-    rating: (4 + (seed % 10) / 10).toFixed(1),
-    repeatRate: 70 + (seed % 20),
-    reviews: [reviewPool[seed % reviewPool.length], reviewPool[(seed + 1) % reviewPool.length]],
-  };
-}
 
 export default function SweetDetailPage() {
   const params = useParams<{ id: string }>();
@@ -48,6 +17,14 @@ export default function SweetDetailPage() {
   const { token, status } = useAuth();
   const [sweets, setSweets] = useState<ApiSweet[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<ApiSweetReview[]>([]);
+  const [reviewSummary, setReviewSummary] = useState({ averageRating: 0, reviewCount: 0 });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'loading'>('idle');
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status !== 'authenticated' || !token) {
@@ -63,6 +40,33 @@ export default function SweetDetailPage() {
 
   const sweet = useMemo(() => sweets.find((item) => item.id === Number(params?.id)), [sweets, params]);
 
+  useEffect(() => {
+    if (!sweet) {
+      return;
+    }
+    setReviewSummary({
+      averageRating: sweet.averageRating ?? 0,
+      reviewCount: sweet.reviewCount ?? 0,
+    });
+    setReviews([]);
+  }, [sweet]);
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !token || !sweet) {
+      return;
+    }
+    setReviewsLoading(true);
+    setReviewsError(null);
+    fetchSweetReviews(token, sweet.id)
+      .then((res) => {
+        setReviews(res.reviews);
+        setReviewSummary(res.summary);
+        setReviewsError(null);
+      })
+      .catch((err: Error) => setReviewsError(err.message))
+      .finally(() => setReviewsLoading(false));
+  }, [status, token, sweet]);
+
   if (status !== 'authenticated') {
     return <p className="text-sm text-slate-600">請登入後查看甜心詳細資訊。</p>;
   }
@@ -74,8 +78,41 @@ export default function SweetDetailPage() {
     return <p className="text-sm text-slate-600">載入中或找不到該甜心，可返回列表再試一次。</p>;
   }
 
-  const stats = buildSweetStats(sweet);
   const recommendations = sweets.filter((item) => item.id !== sweet.id).slice(0, 6);
+  const averageRatingText =
+    reviewSummary.averageRating > 0 ? reviewSummary.averageRating.toFixed(1) : '—';
+  const canSubmitReview = reviewForm.comment.trim().length >= 5;
+  const latestUpdateText = sweet.updateTime ? formatDateTime(sweet.updateTime) : '—';
+  const isSubmittingReview = submitStatus === 'loading';
+
+  const handleReviewSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!token || !sweet) {
+      return;
+    }
+    const comment = reviewForm.comment.trim();
+    if (!comment) {
+      setSubmitError('請輸入評論內容（至少 5 個字）');
+      return;
+    }
+    setSubmitStatus('loading');
+    setSubmitError(null);
+    setSubmitMessage(null);
+    try {
+      const result = await createSweetReview(token, sweet.id, {
+        rating: reviewForm.rating,
+        comment,
+      });
+      setReviews((prev) => [result.review, ...prev]);
+      setReviewSummary(result.summary);
+      setReviewForm({ rating: 5, comment: '' });
+      setSubmitMessage('已送出，感謝你的分享！');
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : '提交評論失敗，請稍後再試');
+    } finally {
+      setSubmitStatus('idle');
+    }
+  };
 
   return (
     <div className="space-y-8">
@@ -98,7 +135,7 @@ export default function SweetDetailPage() {
             )}
           </div>
           <p className="text-xs text-slate-500">
-            編號 {sweet.code ?? 'N/A'} · 更新：{sweet.updateTime ? new Date(sweet.updateTime).toLocaleString() : '—'}
+            編號 {sweet.code ?? 'N/A'} · 更新：{latestUpdateText}
           </p>
         </div>
 
@@ -127,18 +164,16 @@ export default function SweetDetailPage() {
               ))}
           </div>
           {sweet.description && <p className="rounded-2xl bg-brand-light/40 p-3 text-sm text-slate-600">{sweet.description}</p>}
-          <div className="grid gap-3 rounded-2xl bg-gradient-to-br from-white to-brand-light/40 p-4 text-sm text-slate-700 md:grid-cols-3">
-            <div>
-              <p className="text-xs text-slate-500">平均評分</p>
-              <p className="text-xl font-semibold text-brand-pink">{stats.rating}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">累計預約</p>
-              <p className="text-xl font-semibold text-brand-pink">{stats.bookingCount} 次</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">回訪率</p>
-              <p className="text-xl font-semibold text-brand-pink">{stats.repeatRate}%</p>
+          <div className="rounded-2xl border border-brand-light bg-white/90 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs text-slate-500">平均評分</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl font-semibold text-brand-pink">{averageRatingText}</span>
+                  <RatingStars rating={reviewSummary.averageRating} size="md" />
+                </div>
+              </div>
+              <div className="text-sm text-slate-500">共 {reviewSummary.reviewCount} 則評論</div>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -159,19 +194,91 @@ export default function SweetDetailPage() {
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">真實評論</h2>
           <p className="text-xs text-slate-500">分享僅供參考，所有評論皆經過匿名處理。</p>
         </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          {stats.reviews.map((review) => (
-            <article key={review.author + review.title} className="rounded-3xl border border-brand-light bg-white/90 p-4 shadow-sm">
-              <p className="text-sm font-semibold text-brand-pink">{review.title}</p>
-              <p className="mt-2 text-sm text-slate-600">{review.body}</p>
-              <p className="mt-3 text-xs text-slate-500">{review.author}</p>
-            </article>
-          ))}
+        <div className="grid gap-4 lg:grid-cols-[0.9fr,1.1fr]">
+          <form
+            onSubmit={handleReviewSubmit}
+            className="flex flex-col gap-3 rounded-3xl border border-brand-light bg-white/95 p-4 shadow-sm"
+          >
+            <div>
+              <label className="text-xs text-slate-500">給個評分</label>
+              <div className="mt-2 flex items-center gap-3">
+                <select
+                  value={reviewForm.rating}
+                  onChange={(event) =>
+                    setReviewForm((prev) => ({ ...prev, rating: Number(event.target.value) }))
+                  }
+                  className="rounded-2xl border border-brand-light px-3 py-2 text-sm focus:border-brand-pink focus:outline-none"
+                >
+                  {[5, 4, 3, 2, 1].map((score) => (
+                    <option key={score} value={score}>
+                      {score} 分
+                    </option>
+                  ))}
+                </select>
+                <RatingStars rating={reviewForm.rating} size="sm" />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="review-comment" className="text-xs text-slate-500">
+                留下評論（至少 5 個字）
+              </label>
+              <textarea
+                id="review-comment"
+                value={reviewForm.comment}
+                onChange={(event) =>
+                  setReviewForm((prev) => ({ ...prev, comment: event.target.value }))
+                }
+                className="mt-2 min-h-[120px] w-full rounded-2xl border border-brand-light px-3 py-2 text-sm text-slate-700 focus:border-brand-pink focus:outline-none"
+                placeholder="分享服務感受、氣氛或需要注意的小提醒"
+                minLength={5}
+                required
+              />
+            </div>
+            {submitError && <p className="text-xs text-red-500">{submitError}</p>}
+            {submitMessage && <p className="text-xs text-emerald-600">{submitMessage}</p>}
+            <button
+              type="submit"
+              disabled={!canSubmitReview || isSubmittingReview}
+              className={`rounded-full px-4 py-2 text-sm font-medium ${
+                !canSubmitReview || isSubmittingReview
+                  ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                  : 'bg-brand-pink text-white hover:opacity-90'
+              }`}
+            >
+              {isSubmittingReview ? '送出中...' : '送出評論'}
+            </button>
+          </form>
+          <div className="rounded-3xl border border-brand-light bg-white/95 p-4 shadow-sm">
+            {reviewsLoading && <p className="text-sm text-slate-500">評論載入中...</p>}
+            {reviewsError && <p className="text-sm text-red-500">{reviewsError}</p>}
+            {!reviewsLoading && !reviewsError && reviews.length === 0 && (
+              <p className="text-sm text-slate-500">
+                還沒有評論，成為第一個分享體驗的小夜好友吧！
+              </p>
+            )}
+            {!reviewsLoading && !reviewsError && reviews.length > 0 && (
+              <div className="space-y-3">
+                {reviews.map((review) => (
+                  <article
+                    key={review.id}
+                    className="rounded-2xl border border-brand-light/60 bg-white p-3 text-sm text-slate-700"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <RatingStars rating={review.rating} size="sm" />
+                      <span className="text-xs text-slate-400">{formatDateTime(review.createdAt)}</span>
+                    </div>
+                    <p className="mt-2 whitespace-pre-line">{review.comment}</p>
+                    <p className="mt-2 text-xs text-slate-500">{review.userDisplayName}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </section>
 

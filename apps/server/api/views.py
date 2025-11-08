@@ -7,7 +7,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .authentication import LineJWTAuthentication
-from .serializers import BookingSerializer, LineUserSerializer, RewardLogSerializer, SweetSerializer
+from .serializers import (
+    BookingSerializer,
+    LineUserSerializer,
+    RewardLogSerializer,
+    SweetReviewSerializer,
+    SweetSerializer,
+)
 from . import services
 from .models import LineUser, Sweet
 from linebot import line_auth
@@ -27,6 +33,11 @@ class BookingCreateSerializer(serializers.Serializer):
 class RewardUpdateSerializer(serializers.Serializer):
     rewardPoints = serializers.IntegerField(min_value=0)
     reason = serializers.CharField(required=False, allow_blank=True, default="調整積分")
+
+
+class SweetReviewCreateSerializer(serializers.Serializer):
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(required=False, allow_blank=True, max_length=1000)
 
 
 class LoginView(APIView):
@@ -135,3 +146,54 @@ class RewardView(APIView):
             reason=payload.get("reason") or "調整積分",
         )
         return Response({"user": LineUserSerializer(user).data, "delta": delta})
+
+
+class SweetReviewView(APIView):
+    authentication_classes = [LineJWTAuthentication]
+
+    def get(self, request, sweet_id: int):
+        try:
+            Sweet.objects.get(id=sweet_id)
+        except Sweet.DoesNotExist:
+            return Response({"error": "Sweet not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        reviews = services.list_reviews_for_sweet(sweet_id)
+        average, count = services.get_review_summary(sweet_id)
+        return Response(
+            {
+                "reviews": SweetReviewSerializer(reviews, many=True).data,
+                "summary": {
+                    "averageRating": round(average, 2),
+                    "reviewCount": count,
+                },
+            }
+        )
+
+    def post(self, request, sweet_id: int):
+        serializer = SweetReviewCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        payload = serializer.validated_data
+
+        try:
+            review = services.create_review(
+                user=request.user,
+                sweet_id=sweet_id,
+                rating=payload["rating"],
+                comment=payload.get("comment") or "",
+            )
+        except Sweet.DoesNotExist:
+            return Response({"error": "Sweet not found"}, status=status.HTTP_404_NOT_FOUND)
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        average, count = services.get_review_summary(sweet_id)
+        return Response(
+            {
+                "review": SweetReviewSerializer(review).data,
+                "summary": {
+                    "averageRating": round(average, 2),
+                    "reviewCount": count,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
